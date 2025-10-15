@@ -1,13 +1,19 @@
 #include "FilterEngine.h"
-#include <numeric> // For std::accumulate
-#include <cmath>   // For std::sqrt
 #include <unordered_set>
 #include <algorithm>
-#include <iostream>
-#include <chrono>
+#include <numeric> 
+#include <cmath>   
+#include <iostream> 
+#include <chrono>   
+#include <limits>  
 
-FilterEngine::FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size)
-    : data_graph(data), pattern_graph(pattern), graphlet_size(g_size) {}
+// Updated constructor to initialize the mode
+FilterEngine::FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size, bool use_full_graph_mode)
+    : data_graph(data), 
+      pattern_graph(pattern), 
+      graphlet_size(g_size),
+      use_subgraph(!use_full_graph_mode) // Note: flag is inverted for more intuitive internal logic
+{}
 
 bool FilterEngine::run() {
     auto start = std::chrono::high_resolution_clock::now();
@@ -113,14 +119,26 @@ bool FilterEngine::orbitFilter() {
     EVOKEOrbitCounter pattern_counter(pattern_graph, graphlet_size);
     pattern_orbits = pattern_counter.count();
 
-    std::unordered_set<int> candidate_nodes;
-    for (const auto& pair : candidate_sets) {
-        candidate_nodes.insert(pair.second.begin(), pair.second.end());
+    const AppGraph* graph_for_orbit_counting = nullptr;
+
+    if (this->use_subgraph) {
+        std::cout << "\nCreating subgraph for orbit counting..." << std::endl;
+        std::unordered_set<int> candidate_nodes;
+        for (const auto& pair : candidate_sets) {
+            candidate_nodes.insert(pair.second.begin(), pair.second.end());
+        }
+        // This creates a new AppGraph object for the subgraph
+        this->candidate_subgraph = AppGraph::createSubgraph(data_graph, candidate_nodes);
+        graph_for_orbit_counting = &this->candidate_subgraph;
+    } else {
+        std::cout << "\nUsing full data graph for orbit counting..." << std::endl;
+        // Point to the original data graph to avoid copying it for orbit counting
+        graph_for_orbit_counting = &this->data_graph;
+        // Make a copy of the full graph for the search engine to use
+        this->candidate_subgraph = this->data_graph;
     }
 
-    candidate_subgraph = AppGraph::createSubgraph(data_graph, candidate_nodes);
-
-    EVOKEOrbitCounter data_counter(candidate_subgraph, graphlet_size);
+    EVOKEOrbitCounter data_counter(*graph_for_orbit_counting, graphlet_size);
     OrbitCounts data_orbits = data_counter.count();
 
     CandidateSets refined_sets;
@@ -154,39 +172,36 @@ bool FilterEngine::orbitFilter() {
 void FilterEngine::countCandidates(const std::string& filter_step_name) const {
     std::cout << "\n--- Candidate Set Statistics (" << filter_step_name << ") ---" << std::endl;
     if (candidate_sets.empty()) {
-        std::cout << "Average candidates per vertex: 0.0" << std::endl;
-        std::cout << "Std. dev. of candidates per vertex: 0.0" << std::endl;
-        std::cout << "Min candidates for a vertex: 0" << std::endl;
-        std::cout << "Max candidates for a vertex: 0" << std::endl;
+        std::cout << "  Status: Empty (Filter likely failed)" << std::endl;
         std::cout << "-------------------------------------------------" << std::endl;
         return;
     }
 
     std::vector<double> sizes;
     sizes.reserve(candidate_sets.size());
+    double min_size = std::numeric_limits<double>::max();
+    double max_size = 0.0;
+
     for (const auto& pair : candidate_sets) {
-        sizes.push_back(static_cast<double>(pair.second.size()));
+        double current_size = static_cast<double>(pair.second.size());
+        sizes.push_back(current_size);
+        if (current_size < min_size) min_size = current_size;
+        if (current_size > max_size) max_size = current_size;
     }
 
-    // Calculate mean (average)
     double sum = std::accumulate(sizes.begin(), sizes.end(), 0.0);
     double mean = sum / sizes.size();
 
-    // Calculate standard deviation
     double squared_diff_sum = 0.0;
     for (const double size : sizes) {
         squared_diff_sum += (size - mean) * (size - mean);
     }
     double std_dev = std::sqrt(squared_diff_sum / sizes.size());
 
-    // Find min and max
-    auto min_max_it = std::minmax_element(sizes.begin(), sizes.end());
-    double min_size = *min_max_it.first;
-    double max_size = *min_max_it.second;
-
-    std::cout << "Average candidates per vertex: " << mean << std::endl;
-    std::cout << "Std. dev. of candidates per vertex: " << std_dev << std::endl;
-    std::cout << "Min candidates for a vertex: " << min_size << std::endl;
-    std::cout << "Max candidates for a vertex: " << max_size << std::endl;
+    std::cout << "  Avg candidates per vertex: " << mean << std::endl;
+    std::cout << "  Std. dev. of candidates: " << std_dev << std::endl;
+    std::cout << "  Min candidates for a vertex: " << min_size << std::endl;
+    std::cout << "  Max candidates for a vertex: " << max_size << std::endl;
     std::cout << "-------------------------------------------------" << std::endl;
 }
+

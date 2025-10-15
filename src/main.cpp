@@ -12,7 +12,9 @@ void print_usage() {
     std::cerr << "Usage: ./build/orbitsi --data <path> --pattern <path> [options]\n\n"
               << "Options:\n"
               << "  --graphlet-size <3|4|5>  Set the graphlet size for orbit counting (default: 4)\n"
-              << "  --induced                Perform an induced subgraph isomorphism search\n";
+              << "  --induced                Perform an induced subgraph isomorphism search\n"
+              << "  --use-full-graph         Use the full data graph for orbit filtering instead of a subgraph\n"
+              << "  --verbose                Print all found matches to the console\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -26,6 +28,8 @@ int main(int argc, char* argv[]) {
     std::string data_path, pattern_path;
     int graphlet_size = 4;
     bool induced_search = false;
+    bool use_full_graph = false;
+    bool verbose = false; // New flag for verbose output
 
     for (size_t i = 0; i < args.size(); ++i) {
         if (args[i] == "--data" && i + 1 < args.size()) {
@@ -42,6 +46,10 @@ int main(int argc, char* argv[]) {
             }
         } else if (args[i] == "--induced") {
             induced_search = true;
+        } else if (args[i] == "--use-full-graph") {
+            use_full_graph = true;
+        } else if (args[i] == "--verbose") {
+            verbose = true;
         }
     }
 
@@ -68,11 +76,13 @@ int main(int argc, char* argv[]) {
     std::cout << "Graphs loaded successfully." << std::endl;
     std::cout << "Search type: " << (induced_search ? "Induced" : "Non-Induced") << std::endl;
     std::cout << "Graphlet size: " << graphlet_size << std::endl;
+    std::cout << "Filter mode: " << (use_full_graph ? "Full Graph" : "Subgraph") << std::endl;
 
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    FilterEngine filter_engine(data_graph, pattern_graph, graphlet_size);
+    // Pass the new flag to the FilterEngine
+    FilterEngine filter_engine(data_graph, pattern_graph, graphlet_size, use_full_graph);
     if (!filter_engine.run()) {
         std::cout << "Matches found: 0" << std::endl;
         return 0;
@@ -96,15 +106,21 @@ int main(int argc, char* argv[]) {
     
     const auto& matches = search_engine.getMatches();
     std::cout << "\nMatches found: " << matches.size() << std::endl;
-    for (const auto& match : matches) {
-        std::cout << "{";
-        bool first = true;
-        for (const auto& pair : match) {
-            if (!first) std::cout << ", ";
-            std::cout << pair.first << ": " << pair.second;
-            first = false;
+    
+    // If verbose mode is enabled, print all the matches.
+    if (verbose) {
+        std::cout << "\n--- Found Matches ---" << std::endl;
+        for (const auto& match : matches) {
+            std::cout << "{";
+            bool first = true;
+            for (const auto& pair : match) {
+                if (!first) std::cout << ", ";
+                std::cout << pair.first << ": " << pair.second;
+                first = false;
+            }
+            std::cout << "}" << std::endl;
         }
-        std::cout << "}" << std::endl;
+        std::cout << "---------------------" << std::endl;
     }
 
     std::cout << "\nTotal execution time: " << total_elapsed.count() << " seconds." << std::endl;

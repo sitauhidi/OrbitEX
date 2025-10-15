@@ -28,12 +28,12 @@ Once compiled, you can run the program from the command line.
 ```
 
 #### Arguments
-- `data <path>`: (Required) The file path to the large data graph.
-- `pattern <path>`: (Required) The file path to the smaller pattern graph (query).
-- `graphlet-size <3|4|5>`: (Optional) The size of the graphlets to use for orbit counting. Defaults to 4.
-- `induced`: (Optional) If this flag is present, the search will find matches for induced subgraph isomorphism. By default, it performs a standard (non-induced) subgraph isomorphism search (monomorphism).
-
-### Example
+- `--data <path>`: (Required) The file path to the large data graph.
+- `--pattern <path>`: (Required) The file path to the smaller pattern graph (query).
+- `--graphlet-size <3|4|5>`: (Optional) The size of the graphlets to use for orbit counting. Defaults to 4.
+- `--induced`: (Optional) If this flag is present, the search will find matches for induced subgraph isomorphism. By default, it performs a standard (non-induced) subgraph isomorphism search
+- `--use-full-graph`: (Optional) Use the full data graph for orbit filtering instead of a subgraph
+- `--verbose`: (Optional) Print all found matches to the console
 
 ##### Run a standard subgraph search using 4-node graphlets
 
@@ -41,10 +41,10 @@ Once compiled, you can run the program from the command line.
 ./build/orbitsi --data test/data_graph/data.graph --pattern test/query_graph/query_triangle.graph
 ```
 
-##### Run an induced subgraph search using 5-node graphlets
+##### Run an induced subgraph search using 5-node graphlets on full graph and explicit output
 
 ```bash
-./build/orbitsi --data test/data_graph/data.graph --pattern test/query_graph/query_square.graph --graphlet-size 5 --induced
+./build/orbitsi --data test/data_graph/data.graph --pattern test/query_graph/query_square.graph --graphlet-size 5 --induced --use-full-graph --verbose
 ```
 
 ## Testing

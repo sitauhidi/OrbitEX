@@ -3,12 +3,14 @@
 
 #include "AppGraph.h"
 #include "OrbitCounter.h"
+#include <string>
 
 using CandidateSets = std::unordered_map<int, std::vector<int>>;
 
 class FilterEngine {
 public:
-    FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size);
+    // Updated constructor to accept the new mode flag
+    FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size, bool use_full_graph_mode);
 
     bool run();
     const CandidateSets& getCandidateSets() const { return candidate_sets; }
@@ -25,6 +27,7 @@ private:
     const AppGraph& data_graph;
     const AppGraph& pattern_graph;
     int graphlet_size;
+    bool use_subgraph; // True if we should use subgraphing, false otherwise
     
     CandidateSets candidate_sets;
     OrbitCounts pattern_orbits;
@@ -32,3 +35,4 @@ private:
 };
 
 #endif // FILTER_ENGINE_H
+
