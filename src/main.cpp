@@ -9,8 +9,10 @@
 #include "SearchEngine.h"
 
 void print_usage() {
-    // Added the optional --induced flag to the usage string
-    std::cerr << "Usage: orbitsi --data <path> --pattern <path> [--graphlet-size 4|5] [--induced]\n";
+    std::cerr << "Usage: ./build/orbitsi --data <path> --pattern <path> [options]\n\n"
+              << "Options:\n"
+              << "  --graphlet-size <3|4|5>  Set the graphlet size for orbit counting (default: 4)\n"
+              << "  --induced                Perform an induced subgraph isomorphism search\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -23,7 +25,7 @@ int main(int argc, char* argv[]) {
 
     std::string data_path, pattern_path;
     int graphlet_size = 4;
-    bool is_induced = false; // Flag for search type, defaults to non-induced
+    bool induced_search = false;
 
     for (size_t i = 0; i < args.size(); ++i) {
         if (args[i] == "--data" && i + 1 < args.size()) {
@@ -35,11 +37,11 @@ int main(int argc, char* argv[]) {
                 graphlet_size = std::stoi(args[++i]);
             } catch(...) {
                 std::cerr << "Invalid graphlet size.\n";
+                print_usage();
                 return 1;
             }
-        // New logic to parse the --induced flag
         } else if (args[i] == "--induced") {
-            is_induced = true;
+            induced_search = true;
         }
     }
 
@@ -48,8 +50,9 @@ int main(int argc, char* argv[]) {
         print_usage();
         return 1;
     }
-    if (graphlet_size != 4 && graphlet_size != 5) {
-        std::cerr << "Error: --graphlet-size must be 4 or 5.\n";
+    if (graphlet_size != 3 && graphlet_size != 4 && graphlet_size != 5) {
+        std::cerr << "Error: --graphlet-size must be 3, 4, or 5.\n";
+        print_usage();
         return 1;
     }
 
@@ -63,34 +66,36 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     std::cout << "Graphs loaded successfully." << std::endl;
-    if (is_induced) {
-        std::cout << "Search mode: Induced Subgraph Isomorphism" << std::endl;
-    }
+    std::cout << "Search type: " << (induced_search ? "Induced" : "Non-Induced") << std::endl;
+    std::cout << "Graphlet size: " << graphlet_size << std::endl;
+
 
     auto start = std::chrono::high_resolution_clock::now();
 
     FilterEngine filter_engine(data_graph, pattern_graph, graphlet_size);
     if (!filter_engine.run()) {
-        std::cout << "✅ Matches found: 0" << std::endl;
+        std::cout << "Matches found: 0" << std::endl;
         return 0;
     }
-    std::cout << "\nFiltering complete." << std::endl;
+    
+    auto filter_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> filter_elapsed = filter_end - start;
+    std::cout << "\nTotal filtering time: " << filter_elapsed.count() << " seconds." << std::endl;
+
 
     OrderEngine order_engine(pattern_graph, filter_engine.getPatternOrbits());
     order_engine.run();
-    std::cout << "Ordering complete." << std::endl;
 
-    // Pass the is_induced flag to the SearchEngine
     SearchEngine search_engine(filter_engine.getCandidateSubgraph(), pattern_graph,
                                filter_engine.getCandidateSets(), order_engine.getOrder(),
-                               order_engine.getPivot(), is_induced);
+                               order_engine.getPivot(), induced_search);
     search_engine.run();
 
     auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
+    std::chrono::duration<double> total_elapsed = end - start;
     
     const auto& matches = search_engine.getMatches();
-    std::cout << "\n✅ Matches found: " << matches.size() << std::endl;
+    std::cout << "\nMatches found: " << matches.size() << std::endl;
     for (const auto& match : matches) {
         std::cout << "{";
         bool first = true;
@@ -102,7 +107,7 @@ int main(int argc, char* argv[]) {
         std::cout << "}" << std::endl;
     }
 
-    std::cout << "\nTotal execution time: " << elapsed.count() << " seconds." << std::endl;
+    std::cout << "\nTotal execution time: " << total_elapsed.count() << " seconds." << std::endl;
 
     return 0;
 }

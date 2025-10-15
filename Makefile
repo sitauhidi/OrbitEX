@@ -73,6 +73,11 @@ $(BUILD_DIR)/escape/%.o: $(ESCAPE_DIR)/%.cpp
 # --- Utility Rules ---
 
 # Rule to run the test suite for graphlet size 4
+test3: all
+	@echo "\n--- Running Test Suite (pytest, graphlet-size=3) ---"
+	GRAPHLET_SIZE=3 pytest test/
+
+# Rule to run the test suite for graphlet size 4
 test4: all
 	@echo "\n--- Running Test Suite (pytest, graphlet-size=4) ---"
 	GRAPHLET_SIZE=4 pytest test/
@@ -83,7 +88,7 @@ test5: all
 	GRAPHLET_SIZE=5 pytest test/
 
 # Main test rule that runs all test configurations
-test: test4 test5
+test: test3 test4 test5
 	@echo "\n--- All Test Suites Passed ---"
 
 # Rule to clean up all build artifacts
