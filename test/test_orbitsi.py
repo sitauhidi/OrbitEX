@@ -8,8 +8,13 @@ from subprocess import Popen, PIPE
 # --- Utility functions ---
 
 def execute_binary(binary_path, data_graph, query_graph):
-    """Executes the orbitsi binary with the given graphs."""
-    command = f'{binary_path} --data {data_graph} --pattern {query_graph}'
+    """Executes the orbitsi binary with the given graphs and graphlet size."""
+    # Read graphlet size from environment variable, defaulting to '4'
+    graphlet_size = os.environ.get('GRAPHLET_SIZE', '4')
+    
+    command = (f'{binary_path} --data {data_graph} --pattern {query_graph} '
+               f'--graphlet-size {graphlet_size}')
+               
     process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
     std_output, std_error = process.communicate()
     return process.returncode, std_output.decode('utf-8'), std_error.decode('utf-8')
@@ -96,3 +101,4 @@ def test_query_correctness(binary_path, data_graph_path, query_path, expected_re
     assert output_matches == expected_matches, (
         f"Mismatch for '{query_name}': expected {expected_matches}, got {output_matches}"
     )
+
