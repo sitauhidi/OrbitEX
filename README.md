@@ -30,7 +30,7 @@ Once compiled, you can run the program from the command line.
 #### Arguments
 - `data <path>`: (Required) The file path to the large data graph.
 - `pattern <path>`: (Required) The file path to the smaller pattern graph (query).
-- `graphlet-size <4|5>`: (Optional) The size of the graphlets to use for orbit counting. Defaults to 4.
+- `graphlet-size <3|4|5>`: (Optional) The size of the graphlets to use for orbit counting. Defaults to 4.
 - `induced`: (Optional) If this flag is present, the search will find matches for induced subgraph isomorphism. By default, it performs a standard (non-induced) subgraph isomorphism search (monomorphism).
 
 ### Example
