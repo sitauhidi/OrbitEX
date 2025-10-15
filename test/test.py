@@ -1,0 +1,98 @@
+import os
+import glob
+import re
+import pytest
+from subprocess import Popen, PIPE
+
+
+# --- Utility functions ---
+
+def execute_binary(binary_path, data_graph, query_graph):
+    """Executes the orbitsi binary with the given graphs."""
+    command = f'{binary_path} --data {data_graph} --pattern {query_graph}'
+    process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
+    std_output, std_error = process.communicate()
+    return process.returncode, std_output.decode('utf-8'), std_error.decode('utf-8')
+
+
+def parse_output(output):
+    """Parses the output of the orbitsi binary to find the number of matches."""
+    match = re.search(r"Matches found: (\d+)", output)
+    return int(match.group(1)) if match else -1
+
+
+# --- Fixtures ---
+
+@pytest.fixture(scope="session")
+def project_root():
+    """Get absolute path to project root (parent of 'test' directory)."""
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+@pytest.fixture(scope="session")
+def binary_path(project_root):
+    """Path to compiled orbitsi binary."""
+    path = os.path.join(project_root, "build", "orbitsi")
+    if not os.path.isfile(path):
+        pytest.skip(f"Binary not found at '{path}' — build it first.")
+    return path
+
+
+@pytest.fixture(scope="session")
+def expected_results(project_root):
+    """Load expected results from test/expected_output.res."""
+    expected_file = os.path.join(project_root, "test", "expected_output.res")
+    if not os.path.isfile(expected_file):
+        pytest.skip(f"Expected results file not found at '{expected_file}'")
+
+    results = {}
+    with open(expected_file, 'r') as f:
+        for line in f:
+            if line.strip():
+                name, count = line.strip().split(':')
+                results[name.strip()] = int(count.strip())
+    return results
+
+
+@pytest.fixture(scope="session")
+def data_graph_path(project_root):
+    """Path to the main data graph."""
+    path = os.path.join(project_root, "test", "data_graph", "HPRD.graph")
+    if not os.path.isfile(path):
+        pytest.skip(f"Data graph not found at '{path}'")
+    return path
+
+
+@pytest.fixture(scope="session")
+def query_graphs(project_root):
+    """List all query graph files."""
+    folder = os.path.join(project_root, "test", "query_graph")
+    paths = glob.glob(f'{folder}/*.graph')
+    if not paths:
+        pytest.skip(f"No query graphs found in '{folder}'")
+    return paths
+
+
+# --- Parametrized Tests ---
+
+@pytest.mark.parametrize(
+    "query_path",
+    glob.glob(os.path.join(os.path.dirname(__file__), "query_graph", "*.graph")),
+)
+def test_query_correctness(binary_path, data_graph_path, query_path, expected_results):
+    """Run the orbitsi binary for each query graph and verify match counts."""
+    query_name = os.path.splitext(os.path.basename(query_path))[0]
+
+    if query_name not in expected_results:
+        pytest.skip(f"No expected result found for '{query_name}'")
+
+    rc, std_out, std_err = execute_binary(binary_path, data_graph_path, query_path)
+
+    assert rc == 0, f"Binary exited with non-zero status {rc}\nSTDERR:\n{std_err}"
+
+    output_matches = parse_output(std_out)
+    expected_matches = expected_results[query_name]
+
+    assert output_matches == expected_matches, (
+        f"Mismatch for '{query_name}': expected {expected_matches}, got {output_matches}"
+    )
