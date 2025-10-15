@@ -72,10 +72,10 @@ $(BUILD_DIR)/escape/%.o: $(ESCAPE_DIR)/%.cpp
 
 # --- Utility Rules ---
 
-# Rule to run the test suite
+# Rule to run the test suite using pytest
 test: all
-	@echo "\n--- Running Test Suite ---"
-	python3 test/test.py ./build/orbitsi
+	@echo "\n--- Running Test Suite (pytest) ---"
+	pytest test/
 
 # Rule to clean up all build artifacts
 clean:
@@ -84,12 +84,4 @@ clean:
 
 # Phony targets are not files
 .PHONY: all clean test
-```
-
-### Step 3: Rebuild Your Project
-
-Now that the files are moved and the `Makefile` is updated, run a clean build:
-
-```bash
-make clean && make
 
