@@ -89,20 +89,27 @@ int main(int argc, char* argv[]) {
     }
     
     auto filter_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> filter_elapsed = filter_end - start;
-    std::cout << "\nTotal filtering time: " << filter_elapsed.count() << " seconds." << std::endl;
+    auto filter_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(filter_end - start);
+    std::cout << "\nTotal filtering time: " << filter_elapsed.count() << " ms." << std::endl;
 
-
+    auto order_start = std::chrono::high_resolution_clock::now();
     OrderEngine order_engine(pattern_graph, filter_engine.getPatternOrbits());
     order_engine.run();
+    auto order_end = std::chrono::high_resolution_clock::now();
+    auto order_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(order_end - order_start);
+    std::cout << "Total ordering time: " << order_elapsed.count() << " us." << std::endl;
 
+    auto search_start = std::chrono::high_resolution_clock::now();
     SearchEngine search_engine(filter_engine.getCandidateSubgraph(), pattern_graph,
                                filter_engine.getCandidateSets(), order_engine.getOrder(),
                                order_engine.getPivot(), induced_search);
     search_engine.run();
+    auto search_end = std::chrono::high_resolution_clock::now();
+    auto search_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(search_end - search_start);
+    std::cout << "Total searching time: " << search_elapsed.count() << " ms." << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> total_elapsed = end - start;
+    auto total_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     
     const auto& matches = search_engine.getMatches();
     std::cout << "\nMatches found: " << matches.size() << std::endl;
@@ -123,8 +130,7 @@ int main(int argc, char* argv[]) {
         std::cout << "---------------------" << std::endl;
     }
 
-    std::cout << "\nTotal execution time: " << total_elapsed.count() << " seconds." << std::endl;
+    std::cout << "\nTotal execution time: " << total_elapsed.count() << " ms." << std::endl;
 
     return 0;
 }
-
