@@ -27,10 +27,11 @@ private:
     const std::unordered_map<int, int>& pivot;
     bool is_induced; // Member to store the search mode
 
-    Mapping current_mapping;
-    std::unordered_map<int, int> inverse_mapping;
+    // --- OPTIMIZATION: Flat arrays replace unordered_map for O(1) lookups ---
+    std::vector<int> fast_mapping;
+    std::vector<int> fast_inverse_mapping;
+    
     std::vector<Mapping> matches;
 };
 
 #endif // SEARCH_ENGINE_H
-
