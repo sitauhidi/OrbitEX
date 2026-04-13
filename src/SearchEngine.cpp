@@ -4,25 +4,32 @@
 SearchEngine::SearchEngine(const AppGraph& data, const AppGraph& pattern, 
                            const CandidateSets& candidates, const std::vector<int>& o,
                            const std::unordered_map<int, int>& p, bool induced)
-    : data_graph(data), pattern_graph(pattern), candidate_sets(candidates), order(o), pivot(p), is_induced(induced) {}
+    : data_graph(data), pattern_graph(pattern), candidate_sets(candidates), order(o), pivot(p), is_induced(induced) {
+    
+    // --- OPTIMIZATION ---
+    // Pre-allocate flat arrays based on the total number of vertices. 
+    // This removes all hashing overhead from the inner search loop.
+    fast_mapping.assign(pattern_graph.node_to_idx.size(), -1);
+    fast_inverse_mapping.assign(data_graph.node_to_idx.size(), -1);
+}
 
 void SearchEngine::run() {
     matches.clear();
-    current_mapping.clear();
-    inverse_mapping.clear();
+    std::fill(fast_mapping.begin(), fast_mapping.end(), -1);
+    std::fill(fast_inverse_mapping.begin(), fast_inverse_mapping.end(), -1);
     backtrack(0);
 }
 
 bool SearchEngine::is_valid(int u, int v) {
-    if (inverse_mapping.count(v)) return false;
+    // O(1) array lookup instead of unordered_map.count()
+    if (fast_inverse_mapping[v] != -1) return false;
 
     // --- PIVOT PRUNING ---
     auto pivot_it = pivot.find(u);
     if (pivot_it != pivot.end()) {
         int pivot_u = pivot_it->second;
-        auto mapping_it = current_mapping.find(pivot_u);
-        if (mapping_it != current_mapping.end()) {
-            int mapped_pivot_v = mapping_it->second;
+        if (fast_mapping[pivot_u] != -1) {
+            int mapped_pivot_v = fast_mapping[pivot_u];
             if (!data_graph.hasEdge(v, mapped_pivot_v)) {
                 return false;
             }
@@ -30,9 +37,9 @@ bool SearchEngine::is_valid(int u, int v) {
     }
 
     // --- FULL ADJACENCY CHECK ---
-    for (const auto& pair : current_mapping) {
-        int u_prev = pair.first;
-        int v_prev = pair.second;
+    for (size_t u_prev = 0; u_prev < fast_mapping.size(); ++u_prev) {
+        int v_prev = fast_mapping[u_prev];
+        if (v_prev == -1) continue; // Skip unmapped vertices
         
         if (is_induced) {
             // Induced Subgraph Isomorphism:
@@ -56,6 +63,14 @@ bool SearchEngine::is_valid(int u, int v) {
 
 void SearchEngine::backtrack(int depth) {
     if (static_cast<size_t>(depth) == order.size()) {
+        // --- OPTIMIZATION ---
+        // Convert the fast array back into an unordered_map ONLY when a match is verified.
+        Mapping current_mapping;
+        for (size_t i = 0; i < fast_mapping.size(); ++i) {
+            if (fast_mapping[i] != -1) {
+                current_mapping[i] = fast_mapping[i];
+            }
+        }
         matches.push_back(current_mapping);
         return;
     }
@@ -63,14 +78,15 @@ void SearchEngine::backtrack(int depth) {
     int u = order[depth];
     for (int v : candidate_sets.at(u)) {
         if (is_valid(u, v)) {
-            current_mapping[u] = v;
-            inverse_mapping[v] = u;
+            // Apply fast mapping
+            fast_mapping[u] = v;
+            fast_inverse_mapping[v] = u;
             
             backtrack(depth + 1);
 
-            current_mapping.erase(u);
-            inverse_mapping.erase(v);
+            // Revert mapping
+            fast_mapping[u] = -1;
+            fast_inverse_mapping[v] = -1;
         }
     }
 }
-
