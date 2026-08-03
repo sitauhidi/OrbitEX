@@ -7,12 +7,21 @@
 #include <chrono>   
 #include <limits>  
 
-FilterEngine::FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size, bool use_full_graph_mode)
+FilterEngine::FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size, bool use_full_graph_mode, int max_iters)
     : data_graph(data), 
       pattern_graph(pattern), 
       graphlet_size(g_size),
-      use_subgraph(!use_full_graph_mode)
+      use_subgraph(!use_full_graph_mode),
+      max_iterations(!use_full_graph_mode ? max_iters : 1)
 {}
+
+size_t FilterEngine::getCandidateCount() const {
+    size_t total = 0;
+    for (const auto& pair : candidate_sets) {
+        total += pair.second.size();
+    }
+    return total;
+}
 
 bool FilterEngine::run() {
     auto start = std::chrono::high_resolution_clock::now();
@@ -26,25 +35,43 @@ bool FilterEngine::run() {
     std::cout << "\nLDF filtering took " << ldf_duration.count() << " ms." << std::endl;
     countCandidates("After LDF Filter");
 
-    auto nlf_start = std::chrono::high_resolution_clock::now();
-    if (!nlfFilter()) {
-        countCandidates("After NLF Filter (Failed)");
-        return false;
+    int iter = 0;
+    while (max_iterations == 0 || iter < max_iterations) {
+        iter++;
+        if (max_iterations != 1) {
+            std::cout << "\n--- Iteration " << iter << " ---" << std::endl;
+        }
+
+        size_t prev_count = getCandidateCount();
+
+        auto nlf_start = std::chrono::high_resolution_clock::now();
+        if (!nlfFilter()) {
+            countCandidates("After NLF Filter (Failed)");
+            return false;
+        }
+        auto nlf_end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> nlf_duration = nlf_end - nlf_start;
+        std::cout << "NLF filtering took " << nlf_duration.count() << " ms." << std::endl;
+        countCandidates("After NLF Filter");
+        
+        auto orbit_start = std::chrono::high_resolution_clock::now();
+        if (!orbitFilter()) {
+            countCandidates("After Orbit Filter (Failed)");
+            return false;
+        }
+        auto orbit_end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> orbit_duration = orbit_end - orbit_start;
+        std::cout << "Orbit filtering took " << orbit_duration.count() << " ms." << std::endl;
+        countCandidates("After Orbit Filter");
+
+        size_t curr_count = getCandidateCount();
+        if (curr_count == prev_count) {
+            if (max_iterations != 1) {
+                std::cout << "\nFiltering converged after " << iter << " iterations." << std::endl;
+            }
+            break;
+        }
     }
-    auto nlf_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> nlf_duration = nlf_end - nlf_start;
-    std::cout << "\nNLF filtering took " << nlf_duration.count() << " ms." << std::endl;
-    countCandidates("After NLF Filter");
-    
-    auto orbit_start = std::chrono::high_resolution_clock::now();
-    if (!orbitFilter()) {
-        countCandidates("After Orbit Filter (Failed)");
-        return false;
-    }
-    auto orbit_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> orbit_duration = orbit_end - orbit_start;
-    std::cout << "\nOrbit filtering took " << orbit_duration.count() << " ms." << std::endl;
-    countCandidates("After Orbit Filter");
 
     return true;
 }
@@ -162,6 +189,15 @@ bool FilterEngine::orbitFilter() {
         refined_sets[u] = filtered_v;
     }
     candidate_sets = refined_sets;
+
+    if (this->use_subgraph) {
+        std::unordered_set<int> final_candidate_nodes;
+        for (const auto& pair : candidate_sets) {
+            final_candidate_nodes.insert(pair.second.begin(), pair.second.end());
+        }
+        this->candidate_subgraph = AppGraph::createSubgraph(data_graph, final_candidate_nodes);
+    }
+
     return true;
 }
 

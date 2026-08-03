@@ -30,8 +30,9 @@ Once compiled, you can run the program from the command line.
 - `--data <path>`: (Required) The file path to the large data graph.
 - `--pattern <path>`: (Required) The file path to the smaller pattern graph (query).
 - `--graphlet-size <3|4|5>`: (Optional) The size of the graphlets to use for orbit counting (3, 4, or 5). Defaults to 4.
+- `--iterate <N>`: (Optional) Set maximum filtering iterations (NLF + Orbit Filter). `N=1` runs 1 pass (default). `N=0` iterates until candidate sets reach convergence (fixpoint). Cannot be combined with `--use-full-graph`.
 - `--induced`: (Optional) If present, performs an induced subgraph isomorphism search. By default, it performs a standard non-induced subgraph isomorphism search.
-- `--use-full-graph`: (Optional) Perform orbit counting on the full data graph instead of the candidate subgraph. By default, orbit counting is performed on the candidate subgraph induced after LDF and NLF filtering.
+- `--use-full-graph`: (Optional) Perform orbit counting and search backtracking on the full data graph instead of candidate subgraphs. Cannot be combined with `--iterate`.
 - `--verbose`: (Optional) Print all matching node mappings to the console.
 
 #### Examples
@@ -44,6 +45,11 @@ Once compiled, you can run the program from the command line.
 ##### Run a search using 5-node graphlets with full graph orbit filtering and verbose output
 ```bash
 ./build/orbitsi --data test/data_graph/HPRD.graph --pattern test/query_graph/query_dense_16_104.graph --graphlet-size 5 --use-full-graph --verbose
+```
+
+##### Run a search with iterative candidate set filtering until convergence (N=0)
+```bash
+./build/orbitsi --data test/data_graph/HPRD.graph --pattern test/query_graph/query_dense_16_104.graph --iterate 0
 ```
 
 ## Testing

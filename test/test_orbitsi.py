@@ -11,9 +11,11 @@ def execute_binary(binary_path, data_graph, query_graph):
     """Executes the orbitsi binary with the given graphs and graphlet size."""
     # Read graphlet size from environment variable, defaulting to '4'
     graphlet_size = os.environ.get('GRAPHLET_SIZE', '4')
+    iterate_val = os.environ.get('ITERATE', None)
+    iterate_flag = f' --iterate {iterate_val}' if iterate_val is not None else ''
     
     command = (f'{binary_path} --data {data_graph} --pattern {query_graph} '
-               f'--graphlet-size {graphlet_size}')
+               f'--graphlet-size {graphlet_size}{iterate_flag}')
                
     process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
     std_output, std_error = process.communicate()
