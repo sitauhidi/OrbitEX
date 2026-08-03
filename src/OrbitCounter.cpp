@@ -44,14 +44,13 @@ OrbitCounts EVOKEOrbitCounter::count() {
     
     OrbitInfo orbit_counts(&(dag.outlist), num_node_orbits, num_edge_orbits);
     
-    // The counting logic is now hierarchical. All sizes need the 3-vertex orbits.
     get_all_three_orbits(&g_relabel, &dag, orbit_counts);
 
     if (graphlet_size >= 4) {
         if (graphlet_size == 5) {
              get_all_four_orbits(&g_relabel, &dag, orbit_counts);
              get_all_five_orbits(&g_relabel, &dag, orbit_counts, 1); // Enable parallelism
-        } else { // graphlet_size is 4
+        } else {
             get_all_four_orbits_node_only(&g_relabel, &dag, orbit_counts);
         }
     }
@@ -71,4 +70,3 @@ OrbitCounts EVOKEOrbitCounter::count() {
 
     return result;
 }
-

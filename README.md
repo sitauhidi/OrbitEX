@@ -7,7 +7,6 @@ To compile and run this project, you will need:
 
 - A C++ compiler supporting the C++17 standard (e.g., `g++ 8` or newer).
 - The `make` build automation tool.
-- `OpenMP` for parallel processing support (included with `g++`).
 - `Python 3` and `pytest` for running the test suite.
 
 ## Compilation
@@ -30,34 +29,42 @@ Once compiled, you can run the program from the command line.
 #### Arguments
 - `--data <path>`: (Required) The file path to the large data graph.
 - `--pattern <path>`: (Required) The file path to the smaller pattern graph (query).
-- `--graphlet-size <3|4|5>`: (Optional) The size of the graphlets to use for orbit counting. Defaults to 4.
-- `--induced`: (Optional) If this flag is present, the search will find matches for induced subgraph isomorphism. By default, it performs a standard (non-induced) subgraph isomorphism search
-- `--use-full-graph`: (Optional) Use the full data graph for orbit filtering instead of a subgraph
-- `--verbose`: (Optional) Print all found matches to the console
+- `--graphlet-size <3|4|5>`: (Optional) The size of the graphlets to use for orbit counting (3, 4, or 5). Defaults to 4.
+- `--induced`: (Optional) If present, performs an induced subgraph isomorphism search. By default, it performs a standard non-induced subgraph isomorphism search.
+- `--use-full-graph`: (Optional) Perform orbit counting on the full data graph instead of the candidate subgraph. By default, orbit counting is performed on the candidate subgraph induced after LDF and NLF filtering.
+- `--verbose`: (Optional) Print all matching node mappings to the console.
 
-##### Run a standard subgraph search using 4-node graphlets
+#### Examples
 
+##### Run a standard subgraph search using 4-node graphlets (Candidate Subgraph Orbit Filtering)
 ```bash
-./build/orbitsi --data test/data_graph/data.graph --pattern test/query_graph/query_triangle.graph
+./build/orbitsi --data test/data_graph/HPRD.graph --pattern test/query_graph/query_dense_16_104.graph
 ```
 
-##### Run an induced subgraph search using 5-node graphlets on full graph and explicit output
-
+##### Run a search using 5-node graphlets with full graph orbit filtering and verbose output
 ```bash
-./build/orbitsi --data test/data_graph/data.graph --pattern test/query_graph/query_square.graph --graphlet-size 5 --induced --use-full-graph --verbose
+./build/orbitsi --data test/data_graph/HPRD.graph --pattern test/query_graph/query_dense_16_104.graph --graphlet-size 5 --use-full-graph --verbose
 ```
 
 ## Testing
-The project includes a test suite to verify the correctness of the matching algorithm. The tests run the compiled binary against a set of query graphs and compare the number of matches found against a file of expected results.
+The project includes a parameterized test suite (`test/test_orbitsi.py`) to verify match counts against `test/expected_output.res`.
 
-To run the test suite, use the following command:
+To run the test suite using default 4-node graphlets:
 
 ```bash
 make test
 ```
 
+To run the test suite for specific graphlet sizes (3, 4, or 5):
+
+```bash
+GRAPHLET_SIZE=3 pytest test/
+GRAPHLET_SIZE=4 pytest test/
+GRAPHLET_SIZE=5 pytest test/
+```
+
 ## Cleaning
-To remove all compiled object files and the final executable, run the clean command:
+To remove all compiled object files and the final executable, run:
 
 ```bash
 make clean

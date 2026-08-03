@@ -1,16 +1,16 @@
 #include "SearchEngine.h"
 
-// Updated constructor to accept and store the 'induced' flag
 SearchEngine::SearchEngine(const AppGraph& data, const AppGraph& pattern, 
                            const CandidateSets& candidates, const std::vector<int>& o,
                            const std::unordered_map<int, int>& p, bool induced)
     : data_graph(data), pattern_graph(pattern), candidate_sets(candidates), order(o), pivot(p), is_induced(induced) {
     
-    // --- OPTIMIZATION ---
-    // Pre-allocate flat arrays based on the total number of vertices. 
-    // This removes all hashing overhead from the inner search loop.
+    int max_v_id = 0;
+    for (int v_id : data_graph.original_node_ids) {
+        if (v_id > max_v_id) max_v_id = v_id;
+    }
     fast_mapping.assign(pattern_graph.node_to_idx.size(), -1);
-    fast_inverse_mapping.assign(data_graph.node_to_idx.size(), -1);
+    fast_inverse_mapping.assign(max_v_id + 1, -1);
 }
 
 void SearchEngine::run() {
@@ -36,7 +36,7 @@ bool SearchEngine::is_valid(int u, int v) {
         }
     }
 
-    // --- FULL ADJACENCY CHECK ---
+    // --- ADJACENCY CHECK ---
     for (size_t u_prev = 0; u_prev < fast_mapping.size(); ++u_prev) {
         int v_prev = fast_mapping[u_prev];
         if (v_prev == -1) continue; // Skip unmapped vertices
@@ -63,7 +63,6 @@ bool SearchEngine::is_valid(int u, int v) {
 
 void SearchEngine::backtrack(int depth) {
     if (static_cast<size_t>(depth) == order.size()) {
-        // --- OPTIMIZATION ---
         // Convert the fast array back into an unordered_map ONLY when a match is verified.
         Mapping current_mapping;
         for (size_t i = 0; i < fast_mapping.size(); ++i) {

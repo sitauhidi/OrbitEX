@@ -7,12 +7,11 @@
 #include <chrono>   
 #include <limits>  
 
-// Updated constructor to initialize the mode
 FilterEngine::FilterEngine(const AppGraph& data, const AppGraph& pattern, int g_size, bool use_full_graph_mode)
     : data_graph(data), 
       pattern_graph(pattern), 
       graphlet_size(g_size),
-      use_subgraph(!use_full_graph_mode) // Note: flag is inverted for more intuitive internal logic
+      use_subgraph(!use_full_graph_mode)
 {}
 
 bool FilterEngine::run() {
@@ -127,14 +126,11 @@ bool FilterEngine::orbitFilter() {
         for (const auto& pair : candidate_sets) {
             candidate_nodes.insert(pair.second.begin(), pair.second.end());
         }
-        // This creates a new AppGraph object for the subgraph
         this->candidate_subgraph = AppGraph::createSubgraph(data_graph, candidate_nodes);
         graph_for_orbit_counting = &this->candidate_subgraph;
     } else {
         std::cout << "\nUsing full data graph for orbit counting..." << std::endl;
-        // Point to the original data graph to avoid copying it for orbit counting
         graph_for_orbit_counting = &this->data_graph;
-        // Make a copy of the full graph for the search engine to use
         this->candidate_subgraph = this->data_graph;
     }
 
@@ -204,4 +200,3 @@ void FilterEngine::countCandidates(const std::string& filter_step_name) const {
     std::cout << "  Max candidates for a vertex: " << max_size << std::endl;
     std::cout << "-------------------------------------------------" << std::endl;
 }
-

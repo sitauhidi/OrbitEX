@@ -2,7 +2,6 @@
 #include <unordered_set>
 #include <limits>
 
-// FIX: Changed Graph to AppGraph to match the header file and the rest of the app
 OrderEngine::OrderEngine(const AppGraph& pattern, const OrbitCounts& orbits)
     : pattern_graph(pattern), pattern_orbits(orbits) {}
 
@@ -94,4 +93,3 @@ void OrderEngine::run() {
         visited.insert(selected_node);
     }
 }
-
