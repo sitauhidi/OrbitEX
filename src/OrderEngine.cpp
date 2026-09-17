@@ -6,7 +6,6 @@ OrderEngine::OrderEngine(const AppGraph& pattern, const OrbitCounts& orbits)
     : pattern_graph(pattern), pattern_orbits(orbits) {}
 
 void OrderEngine::run() {
-    // Clear previous results
     order.clear();
     pivot.clear();
 
@@ -38,7 +37,6 @@ void OrderEngine::run() {
 
     order.push_back(start_node);
     std::unordered_set<int> visited = {start_node};
-    // The start node has no pivot, so it is not added to the map.
 
     while (order.size() < pattern_graph.original_node_ids.size()) {
         int selected_node = -1;
@@ -79,13 +77,10 @@ void OrderEngine::run() {
             }
         }
 
-        // --- PIVOT CALCULATION ---
-        // Find the first neighbor of the selected node that is already in the order.
-        // This will be its pivot node.
         for (int ordered_node : order) {
             if (pattern_graph.hasEdge(selected_node, ordered_node)) {
                 pivot[selected_node] = ordered_node;
-                break; // First one found is the pivot
+                break;
             }
         }
         

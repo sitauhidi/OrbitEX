@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
     int iterations = 1;
     bool induced_search = false;
     bool use_full_graph = false;
-    bool verbose = false; // New flag for verbose output
+    bool verbose = false;
 
     bool iterate_specified = false;
 
@@ -100,7 +100,6 @@ int main(int argc, char* argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Pass the new flags to the FilterEngine
     FilterEngine filter_engine(data_graph, pattern_graph, graphlet_size, use_full_graph, iterations);
     if (!filter_engine.run()) {
         std::cout << "Matches found: 0" << std::endl;
@@ -133,7 +132,6 @@ int main(int argc, char* argv[]) {
     const auto& matches = search_engine.getMatches();
     std::cout << "\nMatches found: " << matches.size() << std::endl;
     
-    // If verbose mode is enabled, print all the matches.
     if (verbose) {
         std::cout << "\n--- Found Matches ---" << std::endl;
         for (const auto& match : matches) {

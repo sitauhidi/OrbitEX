@@ -5,17 +5,17 @@ import pytest
 from subprocess import Popen, PIPE
 
 
-# --- Utility functions ---
-
 def execute_binary(binary_path, data_graph, query_graph):
     """Executes the orbitsi binary with the given graphs and graphlet size."""
     # Read graphlet size from environment variable, defaulting to '4'
     graphlet_size = os.environ.get('GRAPHLET_SIZE', '4')
     iterate_val = os.environ.get('ITERATE', None)
     iterate_flag = f' --iterate {iterate_val}' if iterate_val is not None else ''
+    use_full_graph = os.environ.get('USE_FULL_GRAPH', '0')
+    full_graph_flag = ' --use-full-graph' if use_full_graph == '1' else ''
     
     command = (f'{binary_path} --data {data_graph} --pattern {query_graph} '
-               f'--graphlet-size {graphlet_size}{iterate_flag}')
+               f'--graphlet-size {graphlet_size}{iterate_flag}{full_graph_flag}')
                
     process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
     std_output, std_error = process.communicate()
@@ -27,8 +27,6 @@ def parse_output(output):
     match = re.search(r"Matches found: (\d+)", output)
     return int(match.group(1)) if match else -1
 
-
-# --- Fixtures ---
 
 @pytest.fixture(scope="session")
 def project_root():
@@ -80,8 +78,6 @@ def query_graphs(project_root):
     return paths
 
 
-# --- Parametrized Tests ---
-
 @pytest.mark.parametrize(
     "query_path",
     glob.glob(os.path.join(os.path.dirname(__file__), "query_graph", "*.graph")),
@@ -103,4 +99,3 @@ def test_query_correctness(binary_path, data_graph_path, query_path, expected_re
     assert output_matches == expected_matches, (
         f"Mismatch for '{query_name}': expected {expected_matches}, got {output_matches}"
     )
-

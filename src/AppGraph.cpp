@@ -33,6 +33,7 @@ void AppGraph::copy_from(const AppGraph& other) {
     this->labels = other.labels;
     this->original_node_ids = other.original_node_ids;
     this->node_to_idx = other.node_to_idx;
+    this->fast_node_to_idx = other.fast_node_to_idx;
     
     if (other.c_graph) {
         this->c_graph = new Escape::CGraph();
@@ -74,14 +75,19 @@ bool AppGraph::readFromFile(const std::string& filepath) {
 
     original_node_ids.assign(node_set.begin(), node_set.end());
     std::sort(original_node_ids.begin(), original_node_ids.end());
+
+    int max_id = original_node_ids.empty() ? -1 : original_node_ids.back();
+    fast_node_to_idx.assign(max_id + 1, -1);
+
     for (size_t i = 0; i < original_node_ids.size(); ++i) {
         node_to_idx[original_node_ids[i]] = i;
+        fast_node_to_idx[original_node_ids[i]] = i;
     }
 
     std::vector<std::vector<int>> adj_temp(original_node_ids.size());
     for (const auto& edge : edges) {
-        int u_idx = node_to_idx.at(edge.first);
-        int v_idx = node_to_idx.at(edge.second);
+        int u_idx = fast_node_to_idx[edge.first];
+        int v_idx = fast_node_to_idx[edge.second];
         adj_temp[u_idx].push_back(v_idx);
         adj_temp[v_idx].push_back(u_idx);
     }
@@ -92,7 +98,6 @@ bool AppGraph::readFromFile(const std::string& filepath) {
     
     std::vector<Escape::VertexIdx> nbors_flat;
     c_graph->offsets[0] = 0;
-    // Cast to size_t to fix signed/unsigned comparison warning
     for (size_t i = 0; i < (size_t)c_graph->nVertices; ++i) {
         std::sort(adj_temp[i].begin(), adj_temp[i].end());
         nbors_flat.insert(nbors_flat.end(), adj_temp[i].begin(), adj_temp[i].end());
@@ -107,17 +112,15 @@ bool AppGraph::readFromFile(const std::string& filepath) {
 }
 
 int AppGraph::degree(int node_id) const {
-    if (node_to_idx.find(node_id) == node_to_idx.end()) return 0;
-    int idx = node_to_idx.at(node_id);
+    int idx = get_node_idx(node_id);
+    if (idx == -1) return 0;
     return c_graph->offsets[idx + 1] - c_graph->offsets[idx];
 }
 
 bool AppGraph::hasEdge(int u_id, int v_id) const {
-    if (node_to_idx.find(u_id) == node_to_idx.end() || node_to_idx.find(v_id) == node_to_idx.end()) {
-        return false;
-    }
-    int u_idx = node_to_idx.at(u_id);
-    int v_idx = node_to_idx.at(v_id);
+    int u_idx = get_node_idx(u_id);
+    int v_idx = get_node_idx(v_id);
+    if (u_idx == -1 || v_idx == -1) return false;
 
     Escape::EdgeIdx start = c_graph->offsets[u_idx];
     Escape::EdgeIdx end = c_graph->offsets[u_idx + 1];
@@ -126,10 +129,9 @@ bool AppGraph::hasEdge(int u_id, int v_id) const {
 }
 
 std::vector<int> AppGraph::getNeighbors(int node_id) const {
-    if (node_to_idx.find(node_id) == node_to_idx.end()) {
-        return {};
-    }
-    int u_idx = node_to_idx.at(node_id);
+    int u_idx = get_node_idx(node_id);
+    if (u_idx == -1) return {};
+
     std::vector<int> neighbors;
     Escape::EdgeIdx start = c_graph->offsets[u_idx];
     Escape::EdgeIdx end = c_graph->offsets[u_idx + 1];
@@ -151,14 +153,18 @@ AppGraph AppGraph::createSubgraph(const AppGraph& original, const std::unordered
     }
     std::sort(subgraph.original_node_ids.begin(), subgraph.original_node_ids.end());
 
+    int max_id = subgraph.original_node_ids.empty() ? -1 : subgraph.original_node_ids.back();
+    subgraph.fast_node_to_idx.assign(max_id + 1, -1);
+
     for (size_t i = 0; i < subgraph.original_node_ids.size(); ++i) {
         subgraph.node_to_idx[subgraph.original_node_ids[i]] = i;
+        subgraph.fast_node_to_idx[subgraph.original_node_ids[i]] = i;
     }
 
     std::vector<std::vector<int>> adj_temp(subgraph.original_node_ids.size());
     for (size_t u_sub_idx = 0; u_sub_idx < subgraph.original_node_ids.size(); ++u_sub_idx) {
         int u_orig_id = subgraph.original_node_ids[u_sub_idx];
-        int u_orig_idx = original.node_to_idx.at(u_orig_id);
+        int u_orig_idx = original.get_node_idx(u_orig_id);
 
         Escape::EdgeIdx start = original.c_graph->offsets[u_orig_idx];
         Escape::EdgeIdx end = original.c_graph->offsets[u_orig_idx + 1];
@@ -166,8 +172,9 @@ AppGraph AppGraph::createSubgraph(const AppGraph& original, const std::unordered
         for (Escape::EdgeIdx i = start; i < end; ++i) {
             int v_orig_idx = original.c_graph->nbors[i];
             int v_orig_id = original.original_node_ids[v_orig_idx];
-            if (node_subset.count(v_orig_id)) {
-                adj_temp[u_sub_idx].push_back(subgraph.node_to_idx.at(v_orig_id));
+            int v_sub_idx = subgraph.get_node_idx(v_orig_id);
+            if (v_sub_idx != -1) {
+                adj_temp[u_sub_idx].push_back(v_sub_idx);
             }
         }
     }
@@ -178,7 +185,6 @@ AppGraph AppGraph::createSubgraph(const AppGraph& original, const std::unordered
     
     std::vector<Escape::VertexIdx> nbors_flat;
     subgraph.c_graph->offsets[0] = 0;
-    // Cast to size_t to fix signed/unsigned comparison warning
     for (size_t i = 0; i < (size_t)subgraph.c_graph->nVertices; ++i) {
         std::sort(adj_temp[i].begin(), adj_temp[i].end());
         nbors_flat.insert(nbors_flat.end(), adj_temp[i].begin(), adj_temp[i].end());

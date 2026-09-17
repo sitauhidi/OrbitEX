@@ -109,6 +109,12 @@ bool FilterEngine::nlfFilter() {
         }
     }
 
+    int max_label = 0;
+    for (const auto& kv : data_graph.labels) {
+        if (kv.second > max_label) max_label = kv.second;
+    }
+    std::vector<int> label_counts(max_label + 1, 0);
+
     CandidateSets refined_sets;
     for (const auto& pair : candidate_sets) {
         int u = pair.first;
@@ -116,19 +122,44 @@ bool FilterEngine::nlfFilter() {
         const auto& u_nlf = pattern_nlf.at(u);
         
         std::vector<int> filtered_v;
+        filtered_v.reserve(candidates_v.size());
+
         for (int v : candidates_v) {
-            std::unordered_map<int, int> v_nlf;
-            for (int nbr : data_graph.getNeighbors(v)) {
-                v_nlf[data_graph.labels.at(nbr)]++;
+            int v_idx = data_graph.get_node_idx(v);
+            if (v_idx == -1) continue;
+
+            Escape::EdgeIdx start = data_graph.c_graph->offsets[v_idx];
+            Escape::EdgeIdx end = data_graph.c_graph->offsets[v_idx + 1];
+
+            for (Escape::EdgeIdx i = start; i < end; ++i) {
+                int nbr_v_idx = data_graph.c_graph->nbors[i];
+                int nbr_v_id = data_graph.original_node_ids[nbr_v_idx];
+                int lbl = data_graph.labels.at(nbr_v_id);
+                if (lbl <= max_label) {
+                    label_counts[lbl]++;
+                }
             }
             
             bool is_valid = true;
             for (const auto& nlf_pair : u_nlf) {
-                if (v_nlf[nlf_pair.first] < nlf_pair.second) {
+                int target_lbl = nlf_pair.first;
+                int req_count = nlf_pair.second;
+                int actual_count = (target_lbl <= max_label) ? label_counts[target_lbl] : 0;
+                if (actual_count < req_count) {
                     is_valid = false;
                     break;
                 }
             }
+
+            for (Escape::EdgeIdx i = start; i < end; ++i) {
+                int nbr_v_idx = data_graph.c_graph->nbors[i];
+                int nbr_v_id = data_graph.original_node_ids[nbr_v_idx];
+                int lbl = data_graph.labels.at(nbr_v_id);
+                if (lbl <= max_label) {
+                    label_counts[lbl] = 0;
+                }
+            }
+
             if (is_valid) {
                 filtered_v.push_back(v);
             }

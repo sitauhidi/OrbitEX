@@ -1,6 +1,6 @@
 #include "OrbitCounter.h"
 #include <stdexcept>
-#include <iostream> // For std::cout
+#include <iostream>
 
 #include "Escape/OrbitStructure.h"
 #include "Escape/GetAllOrbitCounts.h"
@@ -27,8 +27,6 @@ OrbitCounts EVOKEOrbitCounter::count() {
     int num_node_orbits = 0;
     int num_edge_orbits = 0;
 
-    // Set the number of orbits based on the graphlet size.
-    // For size 3, there are 4 node orbits and 3 edge orbits.
     if (graphlet_size == 3) {
         num_node_orbits = 4;
         num_edge_orbits = 3;
@@ -49,7 +47,7 @@ OrbitCounts EVOKEOrbitCounter::count() {
     if (graphlet_size >= 4) {
         if (graphlet_size == 5) {
              get_all_four_orbits(&g_relabel, &dag, orbit_counts);
-             get_all_five_orbits(&g_relabel, &dag, orbit_counts, 1); // Enable parallelism
+             get_all_five_orbits(&g_relabel, &dag, orbit_counts, 1);
         } else {
             get_all_four_orbits_node_only(&g_relabel, &dag, orbit_counts);
         }
