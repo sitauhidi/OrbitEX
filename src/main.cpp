@@ -15,6 +15,7 @@ void print_usage() {
               << "  --iterate <N>            Set max filter iterations (0 = until convergence, default: 1)\n"
               << "  --induced                Perform an induced subgraph isomorphism search\n"
               << "  --use-full-graph         Use the full data graph for orbit filtering instead of a subgraph\n"
+              << "  --cbj                    Use conflict-directed backjumping during enumeration\n"
               << "  --verbose                Print all found matches to the console\n";
 }
 
@@ -31,6 +32,7 @@ int main(int argc, char* argv[]) {
     int iterations = 1;
     bool induced_search = false;
     bool use_full_graph = false;
+    bool cbj_search = false;
     bool verbose = false;
 
     bool iterate_specified = false;
@@ -62,6 +64,8 @@ int main(int argc, char* argv[]) {
             induced_search = true;
         } else if (args[i] == "--use-full-graph") {
             use_full_graph = true;
+        } else if (args[i] == "--cbj") {
+            cbj_search = true;
         } else if (args[i] == "--verbose") {
             verbose = true;
         }
@@ -94,6 +98,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Graphs loaded successfully." << std::endl;
     std::cout << "Search type: " << (induced_search ? "Induced" : "Non-Induced") << std::endl;
+    std::cout << "Backjumping: " << (cbj_search ? "Enabled (CBJ)" : "Disabled") << std::endl;
     std::cout << "Graphlet size: " << graphlet_size << std::endl;
     std::cout << "Filter mode: " << (use_full_graph ? "Full Graph" : "Subgraph") << std::endl;
     std::cout << "Max iterations: " << (iterations == 0 ? "Until Convergence (0)" : std::to_string(iterations)) << std::endl;
@@ -120,7 +125,7 @@ int main(int argc, char* argv[]) {
     auto search_start = std::chrono::high_resolution_clock::now();
     SearchEngine search_engine(filter_engine.getCandidateSubgraph(), pattern_graph,
                                filter_engine.getCandidateSets(), order_engine.getOrder(),
-                               order_engine.getPivot(), induced_search);
+                               order_engine.getPivot(), induced_search, cbj_search);
     search_engine.run();
     auto search_end = std::chrono::high_resolution_clock::now();
     auto search_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(search_end - search_start);

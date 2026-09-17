@@ -1,9 +1,9 @@
 #include "SearchEngine.h"
 
-SearchEngine::SearchEngine(const AppGraph& data, const AppGraph& pattern, 
+SearchEngine::SearchEngine(const AppGraph& data, const AppGraph& pattern,
                            const CandidateSets& candidates, const std::vector<int>& o,
-                           const std::unordered_map<int, int>& p, bool induced)
-    : data_graph(data), pattern_graph(pattern), candidate_sets(candidates), order(o), pivot(p), is_induced(induced) {
+                           const std::unordered_map<int, int>& p, bool induced, bool cbj)
+    : data_graph(data), pattern_graph(pattern), order(o), pivot(p), is_induced(induced), enable_cbj(cbj) {
     
     int max_v_id = 0;
     for (int v_id : data_graph.original_node_ids) {
@@ -156,15 +156,22 @@ void SearchEngine::backtrack(int depth) {
     }
 
     int u = order[depth];
-    for (int v : candidate_sets.at(u)) {
-        if (is_valid(u, v)) {
-            fast_mapping[u] = v;
-            fast_inverse_mapping[v] = u;
-            
-            backtrack(depth + 1);
+    const auto& words = bit_candidates[u];
+    for (int w = 0; w < num_words; ++w) {
+        uint64_t bits = words[w];
+        while (bits) {
+            int v = w * 64 + __builtin_ctzll(bits);
+            bits &= bits - 1;
 
-            fast_mapping[u] = -1;
-            fast_inverse_mapping[v] = -1;
+            if (is_valid(u, v)) {
+                fast_mapping[u] = v;
+                fast_inverse_mapping[v] = u;
+
+                backtrack(depth + 1);
+
+                fast_mapping[u] = -1;
+                fast_inverse_mapping[v] = -1;
+            }
         }
     }
 }
@@ -183,25 +190,41 @@ int SearchEngine::backtrack_cbj(int depth) {
 
     int u = order[depth];
     conflict_set[depth].clear();
+    size_t matches_before = matches.size();
 
-    const auto& candidates = candidate_sets.at(u);
-    for (int v : candidates) {
-        int conflict_u = -1;
-        if (is_valid_cbj(u, v, depth, conflict_u)) {
-            fast_mapping[u] = v;
-            fast_inverse_mapping[v] = u;
+    const auto& words = bit_candidates[u];
+    for (int w = 0; w < num_words; ++w) {
+        uint64_t bits = words[w];
+        while (bits) {
+            int v = w * 64 + __builtin_ctzll(bits);
+            bits &= bits - 1;
 
-            int backjump_depth = backtrack_cbj(depth + 1);
+            int conflict_u = -1;
+            if (is_valid_cbj(u, v, depth, conflict_u)) {
+                fast_mapping[u] = v;
+                fast_inverse_mapping[v] = u;
 
-            fast_mapping[u] = -1;
-            fast_inverse_mapping[v] = -1;
+                int backjump_depth = backtrack_cbj(depth + 1);
 
-            if (backjump_depth < depth - 1) {
-                return backjump_depth;
-            }
-        } else {
-            if (conflict_u != -1) {
-                conflict_set[depth].push_back(conflict_u);
+                fast_mapping[u] = -1;
+                fast_inverse_mapping[v] = -1;
+
+                if (backjump_depth >= 0 && backjump_depth < depth) {
+                    conflict_set[depth].push_back(order[backjump_depth]);
+                }
+
+                if (backjump_depth < depth - 1) {
+                    if (backjump_depth >= 0) {
+                        conflict_set[backjump_depth].insert(conflict_set[backjump_depth].end(),
+                                                             conflict_set[depth].begin(),
+                                                             conflict_set[depth].end());
+                    }
+                    return backjump_depth;
+                }
+            } else {
+                if (conflict_u != -1) {
+                    conflict_set[depth].push_back(conflict_u);
+                }
             }
         }
     }
@@ -215,6 +238,9 @@ int SearchEngine::backtrack_cbj(int depth) {
     }
 
     int target_depth = (max_conflict_depth != -1) ? max_conflict_depth : (depth - 1);
+    if (matches.size() > matches_before) {
+        target_depth = depth - 1;
+    }
     if (target_depth >= 0 && target_depth < static_cast<int>(depth)) {
         conflict_set[target_depth].insert(conflict_set[target_depth].end(),
                                            conflict_set[depth].begin(),

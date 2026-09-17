@@ -20,14 +20,14 @@ public:
 
 private:
     bool ldfFilter();
-    bool nlfFilter();
+    bool nlfFilter(const AppGraph& neighbor_graph);
     bool orbitFilter();
     size_t getCandidateCount() const;
 
     const AppGraph& data_graph;
     const AppGraph& pattern_graph;
     int graphlet_size;
-    bool use_subgraph; // True if we should use subgraphing, false otherwise
+    bool use_subgraph;
     int max_iterations;
     
     CandidateSets candidate_sets;

@@ -35,6 +35,9 @@ bool FilterEngine::run() {
     std::cout << "\nLDF filtering took " << ldf_duration.count() << " ms." << std::endl;
     countCandidates("After LDF Filter");
 
+    EVOKEOrbitCounter pattern_counter(pattern_graph, graphlet_size);
+    pattern_orbits = pattern_counter.count();
+
     int iter = 0;
     while (max_iterations == 0 || iter < max_iterations) {
         iter++;
@@ -44,8 +47,10 @@ bool FilterEngine::run() {
 
         size_t prev_count = getCandidateCount();
 
+        const AppGraph& nlf_graph = (use_subgraph && iter > 1) ? candidate_subgraph : data_graph;
+
         auto nlf_start = std::chrono::high_resolution_clock::now();
-        if (!nlfFilter()) {
+        if (!nlfFilter(nlf_graph)) {
             countCandidates("After NLF Filter (Failed)");
             return false;
         }
@@ -71,6 +76,14 @@ bool FilterEngine::run() {
             }
             break;
         }
+    }
+
+    if (use_subgraph) {
+        std::unordered_set<int> final_candidate_nodes;
+        for (const auto& pair : candidate_sets) {
+            final_candidate_nodes.insert(pair.second.begin(), pair.second.end());
+        }
+        candidate_subgraph = AppGraph::createSubgraph(data_graph, final_candidate_nodes);
     }
 
     return true;
@@ -101,7 +114,7 @@ bool FilterEngine::ldfFilter() {
     return true;
 }
 
-bool FilterEngine::nlfFilter() {
+bool FilterEngine::nlfFilter(const AppGraph& neighbor_graph) {
     std::unordered_map<int, std::unordered_map<int, int>> pattern_nlf;
     for (int u : pattern_graph.original_node_ids) {
         for (int nbr : pattern_graph.getNeighbors(u)) {
@@ -125,21 +138,21 @@ bool FilterEngine::nlfFilter() {
         filtered_v.reserve(candidates_v.size());
 
         for (int v : candidates_v) {
-            int v_idx = data_graph.get_node_idx(v);
+            int v_idx = neighbor_graph.get_node_idx(v);
             if (v_idx == -1) continue;
 
-            Escape::EdgeIdx start = data_graph.c_graph->offsets[v_idx];
-            Escape::EdgeIdx end = data_graph.c_graph->offsets[v_idx + 1];
+            Escape::EdgeIdx start = neighbor_graph.c_graph->offsets[v_idx];
+            Escape::EdgeIdx end = neighbor_graph.c_graph->offsets[v_idx + 1];
 
             for (Escape::EdgeIdx i = start; i < end; ++i) {
-                int nbr_v_idx = data_graph.c_graph->nbors[i];
-                int nbr_v_id = data_graph.original_node_ids[nbr_v_idx];
-                int lbl = data_graph.labels.at(nbr_v_id);
+                int nbr_v_idx = neighbor_graph.c_graph->nbors[i];
+                int nbr_v_id = neighbor_graph.original_node_ids[nbr_v_idx];
+                int lbl = neighbor_graph.labels.at(nbr_v_id);
                 if (lbl <= max_label) {
                     label_counts[lbl]++;
                 }
             }
-            
+
             bool is_valid = true;
             for (const auto& nlf_pair : u_nlf) {
                 int target_lbl = nlf_pair.first;
@@ -152,9 +165,9 @@ bool FilterEngine::nlfFilter() {
             }
 
             for (Escape::EdgeIdx i = start; i < end; ++i) {
-                int nbr_v_idx = data_graph.c_graph->nbors[i];
-                int nbr_v_id = data_graph.original_node_ids[nbr_v_idx];
-                int lbl = data_graph.labels.at(nbr_v_id);
+                int nbr_v_idx = neighbor_graph.c_graph->nbors[i];
+                int nbr_v_id = neighbor_graph.original_node_ids[nbr_v_idx];
+                int lbl = neighbor_graph.labels.at(nbr_v_id);
                 if (lbl <= max_label) {
                     label_counts[lbl] = 0;
                 }
@@ -173,9 +186,6 @@ bool FilterEngine::nlfFilter() {
 }
 
 bool FilterEngine::orbitFilter() {
-    EVOKEOrbitCounter pattern_counter(pattern_graph, graphlet_size);
-    pattern_orbits = pattern_counter.count();
-
     const AppGraph* graph_for_orbit_counting = nullptr;
 
     if (this->use_subgraph) {
@@ -220,14 +230,6 @@ bool FilterEngine::orbitFilter() {
         refined_sets[u] = filtered_v;
     }
     candidate_sets = refined_sets;
-
-    if (this->use_subgraph) {
-        std::unordered_set<int> final_candidate_nodes;
-        for (const auto& pair : candidate_sets) {
-            final_candidate_nodes.insert(pair.second.begin(), pair.second.end());
-        }
-        this->candidate_subgraph = AppGraph::createSubgraph(data_graph, final_candidate_nodes);
-    }
 
     return true;
 }

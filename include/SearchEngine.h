@@ -8,9 +8,9 @@ using Mapping = std::unordered_map<int, int>;
 
 class SearchEngine {
 public:
-    SearchEngine(const AppGraph& data, const AppGraph& pattern, 
+    SearchEngine(const AppGraph& data, const AppGraph& pattern,
                  const CandidateSets& candidates, const std::vector<int>& order,
-                 const std::unordered_map<int, int>& pivot, bool induced);
+                 const std::unordered_map<int, int>& pivot, bool induced, bool cbj);
 
     void run();
     const std::vector<Mapping>& getMatches() const { return matches; }
@@ -21,7 +21,6 @@ private:
 
     const AppGraph& data_graph;
     const AppGraph& pattern_graph;
-    const CandidateSets& candidate_sets;
     const std::vector<int>& order;
     const std::unordered_map<int, int>& pivot;
     bool is_induced;
@@ -36,7 +35,7 @@ private:
     int num_words = 0;
     std::vector<int> order_position;
     std::vector<std::vector<int>> conflict_set;
-    bool enable_cbj = false;
+    bool enable_cbj;
 
     bool enable_symmetry_breaking = false;
     std::vector<int> symmetry_parent;
